@@ -8,21 +8,19 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 20s
   datasource:
-    # Default: embedded H2 (file-based, MySQL compatibility mode) for zero-setup local runs.
-    # Docker/Kubernetes override DB_URL/DB_USERNAME/DB_PASSWORD to point at MySQL.
-    url: ${DB_URL:jdbc:h2:file:./data/countrydb;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_ON_EXIT=FALSE}
-    username: ${DB_USERNAME:sa}
-    password: ${DB_PASSWORD:}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/countrydb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
     hikari:
       maximum-pool-size: ${DB_POOL_SIZE:10}
       connection-timeout: 5000
   h2:
     console:
-      enabled: ${H2_CONSOLE:false}   # set H2_CONSOLE=true, then open http://localhost:8080/h2-console
+      enabled: ${H2_CONSOLE:false}
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: ${DDL_AUTO:update}   # use Flyway + 'validate' for real production
+      ddl-auto: ${DDL_AUTO:update}
   cache:
     type: caffeine
     caffeine:
@@ -62,7 +60,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus
+        include: health,info,metrics
   endpoint:
     health:
       probes:
@@ -74,7 +72,6 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
-
 logging:
   pattern:
     level: "%5p [%X{correlationId:-}]"
