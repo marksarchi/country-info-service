@@ -1,0 +1,82 @@
+server:
+  port: 8080
+  shutdown: graceful
+
+spring:
+  application:
+    name: country-info-service
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  datasource:
+    # Default: embedded H2 (file-based, MySQL compatibility mode) for zero-setup local runs.
+    # Docker/Kubernetes override DB_URL/DB_USERNAME/DB_PASSWORD to point at MySQL.
+    url: ${DB_URL:jdbc:h2:file:./data/countrydb;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_ON_EXIT=FALSE}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      connection-timeout: 5000
+  h2:
+    console:
+      enabled: ${H2_CONSOLE:false}   # set H2_CONSOLE=true, then open http://localhost:8080/h2-console
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: ${DDL_AUTO:update}   # use Flyway + 'validate' for real production
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=1000,expireAfterWrite=24h
+  jackson:
+    default-property-inclusion: non_null
+
+soap:
+  country-info:
+    url: ${SOAP_URL:http://localhost:9/x}
+    connect-timeout: ${SOAP_CONNECT_TIMEOUT:2s}
+    read-timeout: ${SOAP_READ_TIMEOUT:5s}
+
+resilience4j:
+  retry:
+    instances:
+      countryInfo:
+        max-attempts: 3
+        wait-duration: 300ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - com.example.countryinfoservice.exception.ExternalServiceException
+  circuitbreaker:
+    instances:
+      countryInfo:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        record-exceptions:
+          - com.example.countryinfoservice.exception.ExternalServiceException
+        register-health-indicator: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when-authorized
+  health:
+    circuitbreakers:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  pattern:
+    level: "%5p [%X{correlationId:-}]"
+  level:
+    com.example.countryinfoservice: INFO
